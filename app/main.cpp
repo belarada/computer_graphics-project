@@ -29,8 +29,10 @@ const char *vertexShaderSource = R"S(
 const char *fragmentShaderSource = R"S(
     #version 330 core
     out vec4 FragColor;
+    uniform vec4 ourColor;
+
     void main(){
-        FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+        FragColor = ourColor;
     }
 )S";
 
@@ -104,28 +106,64 @@ int main() {
         glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
         std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
     }
+
+    int colorLocation = glGetUniformLocation(shaderProgram, "ourColor");
+    if(colorLocation == -1){
+        std::cout << "Failed to find uniform 'ourColor'!\n";
+        return EXIT_FAILURE;
+    }
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
     // set up vertex data and cofigure vertex attributes
     float vertices[] = {
-        -0.5f, -0.5f, 0.0f,
-        0.5f, -0.5f, 0.0f,
-        0.5f, 0.5f, 0.0f,
+        // bottom row
+        -1.0f, -1.0f, 0.0f, // 0
+        0.0f, -1.0f, 0.0f,  // 1
+        1.0f, -1.0f, 0.0f,  // 2
 
-        -0.5f, -0.5f, 0.0f,
-        0.5f, 0.5f, 0.0f,
-        -0.5f, 0.5f, 0.0f
+        // middle row
+        -1.0f, 0.0f, 0.0f,  // 3
+        0.0f, 0.0f, 0.0f,   // 4
+        1.0f, 0.0f, 0.0f,   // 5
+
+        // top row
+        -1.0f, 1.0f, 0.0f,  // 6
+        0.0f, 1.0f, 0.0f,   // 7
+        1.0f, 1.0f, 0.0f    // 8
 
     };
 
-    unsigned int VBO, VAO;
+    unsigned int indices[] = {
+        // I quadrant
+        4, 5, 8,
+        4, 8, 7, 
+
+        // II quadrant
+        3, 4, 7,
+        3, 7, 6,
+
+        // III quadrant
+        0, 1, 4,
+        0, 4, 3,
+
+        // IV quadrant
+        1, 2, 5,
+        1, 5, 4
+
+    };
+
+    unsigned int VBO, VAO, EBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
     glBindVertexArray(VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -145,12 +183,24 @@ int main() {
         update(window);
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // I quadrant
+        glUniform4f(colorLocation, 0.99f, 0.6f, 0.71f, 1.0f);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+        // II quadrant
+        glUniform4f(colorLocation, 0.75f, 0.76f, 0.89f, 1.0f);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(6*sizeof(unsigned int)));
+        // III quadrant
+        glUniform4f(colorLocation, 0.99f, 0.96f, 0.71f, 1.0f);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(12*sizeof(unsigned int)));
+        // IV quadrant
+        glUniform4f(colorLocation, 0.97f, 0.96f, 0.92f, 1.0f);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(18*sizeof(unsigned int)));
         glfwSwapBuffers(window);
     }
 
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
     glDeleteProgram(shaderProgram);
     glfwTerminate();
     return 0;
