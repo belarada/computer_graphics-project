@@ -10,6 +10,18 @@
 // constants
 constexpr float PI = 3.14159265358979323846f;
 
+// polygon struct
+struct PolygonState{
+    int n = 5;
+    float radius = 0.5f;
+
+    unsigned int VAO = 0;
+    unsigned int VBO = 0;
+    unsigned int EBO = 0;
+
+    GLsizei indexCount = 0;
+};
+
 // function declarations
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -17,6 +29,7 @@ void mouse_callback(GLFWwindow* window, int button, int action, int mods);
 void cursor_callback(GLFWwindow* window, double xpos, double ypos);
 void update(GLFWwindow* window);
 void createPolygon(int n, float radius, std::vector<float>& vertices, std::vector<unsigned int>& indices);
+void updatePolygon(PolygonState& polygon);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -209,6 +222,18 @@ int main() {
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+    PolygonState polygon;
+    polygon.n = n;
+    polygon.radius = radius;
+
+    polygon.VAO = polygonVAO;
+    polygon.VBO = polygonVBO;
+    polygon.EBO = polygonEBO;
+
+    polygon.indexCount = static_cast<GLsizei>(polygonIndices.size());
+
+    glfwSetWindowUserPointer(window, &polygon);
+
     // set initial viewport
     int fbWidth, fbHeight;
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
@@ -235,7 +260,7 @@ int main() {
         // regular polygon
         glBindVertexArray(polygonVAO);
         glUniform4f(colorLocation, 0.65f, 0.58f, 0.85f, 1.0f);
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(polygonIndices.size()), GL_UNSIGNED_INT, (void*) 0);
+        glDrawElements(GL_TRIANGLES, polygon.indexCount, GL_UNSIGNED_INT, (void*) 0);
         glfwSwapBuffers(window);
     }
 
@@ -313,6 +338,18 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         glfwGetWindowSize(window, &width, &height);
         glfwSetWindowSize(window, width + 25, height);
     }
+
+    // CTRL _ digit - change polygon
+    if(key >= GLFW_KEY_3 && key <= GLFW_KEY_9 && (mods & GLFW_MOD_CONTROL)){
+        int newN = key - GLFW_KEY_0;
+
+        PolygonState* polygon = static_cast<PolygonState*>(glfwGetWindowUserPointer(window));
+
+        if(polygon != nullptr){
+            polygon->n = newN;
+            updatePolygon(*polygon);
+        }
+    }
 }
 
 // ------------------------------------------
@@ -363,7 +400,7 @@ void update(GLFWwindow* window){
 }
 
 // ------------------------------------------
-// polygon function
+// create polygon 
 // ------------------------------------------
 void createPolygon(int n, float radius, std::vector<float>& vertices, std::vector<unsigned int>& indices){
     vertices.clear();
@@ -392,4 +429,31 @@ void createPolygon(int n, float radius, std::vector<float>& vertices, std::vecto
         indices.push_back(i+1);
         indices.push_back((i+1)%n + 1);
     }
+}
+
+// ------------------------------------------
+// update polygon 
+// ------------------------------------------
+void updatePolygon(PolygonState& polygon){
+    std::vector<float> vertices;
+    std::vector<unsigned int> indices;
+
+    createPolygon(polygon.n, polygon.radius, vertices, indices);
+
+    // update vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, polygon.VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
+
+    // update element buffer
+    glBindVertexArray(polygon.VAO);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, polygon.EBO);
+
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_DYNAMIC_DRAW);
+
+    polygon.indexCount = static_cast<GLsizei>(indices.size());
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
